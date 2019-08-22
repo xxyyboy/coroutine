@@ -40,8 +40,7 @@ struct coroutine {
 };
 
 //创建协程
-struct coroutine * 
-_co_new(struct schedule *S , coroutine_func func, void *ud) {
+struct coroutine * _co_new(struct schedule *S , coroutine_func func, void *ud) {
 	struct coroutine * co = malloc(sizeof(*co)); //分配空间
 	co->func = func; //设置执行函数
 	co->ud = ud; //设置参数
@@ -54,15 +53,13 @@ _co_new(struct schedule *S , coroutine_func func, void *ud) {
 }
 
 //删除协程
-void
-_co_delete(struct coroutine *co) {
+void _co_delete(struct coroutine *co) {
 	free(co->stack);
 	free(co); //释放空间
 }
 
 //创建调度器
-struct schedule * 
-coroutine_open(void) {
+struct schedule * coroutine_open(void) {
 	struct schedule *S = malloc(sizeof(*S));
 	S->nco = 0;
 	S->cap = DEFAULT_COROUTINE;
@@ -73,8 +70,7 @@ coroutine_open(void) {
 }
 
 //删除调度器
-void 
-coroutine_close(struct schedule *S) {
+void coroutine_close(struct schedule *S) {
 	int i;
 	for (i=0;i<S->cap;i++) {
 		struct coroutine * co = S->co[i];
@@ -88,8 +84,7 @@ coroutine_close(struct schedule *S) {
 }
 
 //创建协程并加入调度器
-int 
-coroutine_new(struct schedule *S, coroutine_func func, void *ud) {
+int coroutine_new(struct schedule *S, coroutine_func func, void *ud) {
 	struct coroutine *co = _co_new(S, func , ud);
 	if (S->nco >= S->cap) { //如果协程数量超过容量，则重新分配，容量扩大两倍，返回协程id
 		int id = S->cap;
@@ -115,8 +110,7 @@ coroutine_new(struct schedule *S, coroutine_func func, void *ud) {
 }
 
 //协程第一次执行调用的函数
-static void
-mainfunc(uint32_t low32, uint32_t hi32) {
+static void mainfunc(uint32_t low32, uint32_t hi32) {
 	uintptr_t ptr = (uintptr_t)low32 | ((uintptr_t)hi32 << 32); //不知道为什么拆成高低位
 	struct schedule *S = (struct schedule *)ptr;
 	int id = S->running; //取得当前正在执行的协程id
@@ -129,8 +123,7 @@ mainfunc(uint32_t low32, uint32_t hi32) {
 }
 
 //恢复id号协程
-void 
-coroutine_resume(struct schedule * S, int id) {
+void coroutine_resume(struct schedule * S, int id) {
 	assert(S->running == -1);
 	assert(id >=0 && id < S->cap);
 	struct coroutine *C = S->co[id];
@@ -161,8 +154,7 @@ coroutine_resume(struct schedule * S, int id) {
 }
 
 //保存共享栈到私有栈
-static void
-_save_stack(struct coroutine *C, char *top) { //top为栈底
+static void _save_stack(struct coroutine *C, char *top) { //top为栈底
 	char dummy = 0; //这里定义一个char变量，dummy地址为栈顶
 	assert(top - &dummy <= STACK_SIZE); //dummy地址减栈底地址为当前使用的栈大小
 	if (C->cap < top - &dummy) { //如果当前协程栈大小小于已用大小，重新分配
@@ -175,8 +167,7 @@ _save_stack(struct coroutine *C, char *top) { //top为栈底
 }
 
 //中断协程执行
-void
-coroutine_yield(struct schedule * S) {
+void coroutine_yield(struct schedule * S) {
 	int id = S->running; //回去当前正在执行的协程id
 	assert(id >= 0);
 	struct coroutine * C = S->co[id];
@@ -188,8 +179,7 @@ coroutine_yield(struct schedule * S) {
 }
 
 //返回id号协程的状态
-int 
-coroutine_status(struct schedule * S, int id) {
+int coroutine_status(struct schedule * S, int id) {
 	assert(id>=0 && id < S->cap);
 	if (S->co[id] == NULL) {
 		return COROUTINE_DEAD;
@@ -198,8 +188,7 @@ coroutine_status(struct schedule * S, int id) {
 }
 
 //返回正在运行的协程id
-int 
-coroutine_running(struct schedule * S) {
+int coroutine_running(struct schedule * S) {
 	return S->running;
 }
 
