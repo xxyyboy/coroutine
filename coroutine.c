@@ -129,22 +129,22 @@ coroutine_resume(struct schedule * S, int id) {
 		return;
 	int status = C->status;
 	switch(status) {
-	case COROUTINE_READY:
-		getcontext(&C->ctx);
-		C->ctx.uc_stack.ss_sp = S->stack;
-		C->ctx.uc_stack.ss_size = STACK_SIZE;
-		C->ctx.uc_link = &S->main;
-		S->running = id;
-		C->status = COROUTINE_RUNNING;
+	case COROUTINE_READY: //如果状态是ready也就是第一次创建
+		getcontext(&C->ctx);//获取当前上下文
+		C->ctx.uc_stack.ss_sp = S->stack;//将协程栈设置为调度器的共享栈
+		C->ctx.uc_stack.ss_size = STACK_SIZE;//设置栈容量  使用时栈顶栈底同时指向S->stack+STACK_SIZE，栈顶向下扩张
+		C->ctx.uc_link = &S->main;//将返回上下文设置为调度器的上下文，协程执行完后会返回到main上下文
+		S->running = id;//设置调度器当前运行的协程id
+		C->status = COROUTINE_RUNNING;//设置协程状态
 		uintptr_t ptr = (uintptr_t)S;
-		makecontext(&C->ctx, (void (*)(void)) mainfunc, 2, (uint32_t)ptr, (uint32_t)(ptr>>32));
-		swapcontext(&S->main, &C->ctx);
+		makecontext(&C->ctx, (void (*)(void)) mainfunc, 2, (uint32_t)ptr, (uint32_t)(ptr>>32));//重置上下文执行mainfunc
+		swapcontext(&S->main, &C->ctx);//保存当前上下文到main，跳转到ctx的上下文
 		break;
-	case COROUTINE_SUSPEND:
-		memcpy(S->stack + STACK_SIZE - C->size, C->stack, C->size);
+	case COROUTINE_SUSPEND://如果状态时暂停也就是之前yield过
+		memcpy(S->stack + STACK_SIZE - C->size, C->stack, C->size);//将协程之前保存的栈拷贝到调度器的共享栈
 		S->running = id;
 		C->status = COROUTINE_RUNNING;
-		swapcontext(&S->main, &C->ctx);
+		swapcontext(&S->main, &C->ctx); //同上
 		break;
 	default:
 		assert(0);
@@ -152,16 +152,16 @@ coroutine_resume(struct schedule * S, int id) {
 }
 
 static void
-_save_stack(struct coroutine *C, char *top) {
-	char dummy = 0;
-	assert(top - &dummy <= STACK_SIZE);
-	if (C->cap < top - &dummy) {
+_save_stack(struct coroutine *C, char *top) { //top为栈底
+	char dummy = 0; //这里定义一个char变量，dummy地址为栈顶
+	assert(top - &dummy <= STACK_SIZE); //dummy地址减栈底地址为当前使用的栈大小
+	if (C->cap < top - &dummy) { //如果当前协程栈大小小于已用大小，重新分配
 		free(C->stack);
 		C->cap = top-&dummy;
 		C->stack = malloc(C->cap);
 	}
 	C->size = top - &dummy;
-	memcpy(C->stack, &dummy, C->size);
+	memcpy(C->stack, &dummy, C->size); //将共享栈拷贝到协程栈
 }
 
 void
