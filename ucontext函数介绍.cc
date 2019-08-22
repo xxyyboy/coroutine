@@ -1,8 +1,18 @@
+//在类System V环境中,在头文件< ucontext.h > 中定义了两个结构类型，mcontext_t和ucontext_t
+//四个函数getcontext(),setcontext(),makecontext(),swapcontext().利用它们可以在一个进程中实现用户级的线程切换。
+//mcontext_t类型与机器相关，并且不透明.ucontext_t结构体则至少拥有以下几个域:
+
+
+//当当前上下文(如使用makecontext创建的上下文）运行终止时系统会恢复uc_link指向的上下文；
+//uc_sigmask为该上下文中的阻塞信号集合；
+//uc_stack为该上下文中使用的栈；
+//uc_mcontext保存的上下文的特定机器表示，包括调用线程的特定寄存器等。
+
 typedef struct ucontext {      //上下文结构体
     struct ucontext *uc_link;  // 该上下文执行完时要恢复的上下文
-    sigset_t         uc_sigmask;  
-    stack_t          uc_stack;  //使用的栈
-    mcontext_t       uc_mcontext;  
+    sigset_t         uc_sigmask;  //为该上下文中的阻塞信号集合
+    stack_t          uc_stack;  //为该上下文中使用的栈
+    mcontext_t       uc_mcontext;  //保存的上下文的特定机器表示，包括调用线程的特定寄存器等
     ...  
 } ucontext_t;  
 int getcontext(ucontext_t *ucp); //将当前上下文保存到ucp
