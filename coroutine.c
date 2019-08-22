@@ -115,7 +115,9 @@ static void mainfunc(uint32_t low32, uint32_t hi32) {
 	struct schedule *S = (struct schedule *)ptr;
 	int id = S->running; //取得当前正在执行的协程id
 	struct coroutine *C = S->co[id];
+	
 	C->func(S,C->ud); //调用协程绑定的函数
+	
 	_co_delete(C); //协程已经执行完，可以清除
 	S->co[id] = NULL;
 	--S->nco;
@@ -124,20 +126,22 @@ static void mainfunc(uint32_t low32, uint32_t hi32) {
 
 //恢复id号协程
 void coroutine_resume(struct schedule * S, int id) {
-	assert(S->running == -1);
-	assert(id >=0 && id < S->cap);
-	struct coroutine *C = S->co[id];
-	if (C == NULL)
-		return;
+	assert(S->running == -1); //判断协程调度器状态，running为正在运行的协程id
+	assert(id >=0 && id < S->cap); //协程id在调度器的范围内
+	struct coroutine *C = S->co[id]; //co 指针的指针，存储协程的数组
+	
+	if (C == NULL)  return;
+	
 	int status = C->status;
 	switch(status) {
-	case COROUTINE_READY: //如果状态是ready也就是第一次创建
-		getcontext(&C->ctx); //获取当前上下文
+	case COROUTINE_READY: //如果状态是ready也就是第一次创建后执行协程
+		getcontext(&C->ctx); //将当前上下文保存到，存储给当前协程的C->ctx
 		C->ctx.uc_stack.ss_sp = S->stack; //将协程栈设置为调度器的共享栈
 		C->ctx.uc_stack.ss_size = STACK_SIZE; //设置栈容量  使用时栈顶栈底同时指向S->stack+STACK_SIZE，栈顶向下扩张
 		C->ctx.uc_link = &S->main; //将返回上下文设置为调度器的上下文，协程执行完后会返回到main上下文
 		S->running = id; //设置调度器当前运行的协程id
 		C->status = COROUTINE_RUNNING; //设置协程状态
+			
 		uintptr_t ptr = (uintptr_t)S;
 		makecontext(&C->ctx, (void (*)(void)) mainfunc, 2, (uint32_t)ptr, (uint32_t)(ptr>>32));//重置上下文执行mainfunc
 		swapcontext(&S->main, &C->ctx); //保存当前上下文到main，跳转到ctx的上下文
